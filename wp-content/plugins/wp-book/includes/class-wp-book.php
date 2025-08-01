@@ -78,6 +78,7 @@ class Wp_Book {
 		$this->set_locale();
 		$this->define_admin_hooks();
 		$this->define_public_hooks();
+		add_action('init',[$this,'register_book_post_type']);
 
 	}
 
@@ -215,4 +216,17 @@ class Wp_Book {
 		return $this->version;
 	}
 
+	public function register_book_post_type(){
+		register_post_type('book',[
+			'labels'=>[
+				'name'=>__('Books', 'wp-book'),
+				'singular_name'=>__('Book', 'wp-book'),
+			],
+			'public'=>true,
+			'has_archive'=>true,
+			'menu_icon'=>'dashicons-book',
+			'supports'=>['title','editor','thumbnail'],
+			'show_in_rest'=>true,
+		]);
+	}
 }
