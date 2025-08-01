@@ -82,6 +82,9 @@ class Wp_Book {
 		add_action('init',[$this, 'register_book_taxonomies']);
 		add_action('add_meta_boxes',[$this, 'add_book_meta_box']); 
 		add_action('save_post',[$this,'save_book_meta']);
+		add_action( 'admin_menu', [ $this, 'add_book_settings_page' ] );
+		add_action( 'admin_init', [ $this, 'register_book_settings' ] );
+
 	}
 
 	/**
@@ -324,34 +327,102 @@ class Wp_Book {
 		<?php 
 	}
 
-	public function save_book_meta( $post_id ) {
-    if ( ! isset( $_POST['book_meta_nonce'] ) || ! wp_verify_nonce( $_POST['book_meta_nonce'], basename( __FILE__ ) ) ) {
-        return;
-    }
+	public function save_book_meta( $post_id ) 
+	{
+		if ( ! isset( $_POST['book_meta_nonce'] ) || ! wp_verify_nonce( $_POST['book_meta_nonce'], basename( __FILE__ ) ) ) {
+			return;
+		}
 
-    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-    if ( get_post_type( $post_id ) !== 'book' || ! current_user_can( 'edit_post', $post_id ) ) return;
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+		if ( get_post_type( $post_id ) !== 'book' || ! current_user_can( 'edit_post', $post_id ) ) return;
 
-    global $wpdb;
-    $table = $wpdb->prefix . 'book_meta';
+		global $wpdb;
+		$table = $wpdb->prefix . 'book_meta';
 
-    $data = [
-        'author'    => sanitize_text_field( $_POST['book_author'] ?? '' ),
-        'price'     => sanitize_text_field( $_POST['book_price'] ?? '' ),
-        'publisher' => sanitize_text_field( $_POST['book_publisher'] ?? '' ),
-        'year'      => sanitize_text_field( $_POST['book_year'] ?? '' ),
-        'edition'   => sanitize_text_field( $_POST['book_edition'] ?? '' ),
-        'url'       => esc_url_raw( $_POST['book_url'] ?? '' ),
-    ];
+		$data = [
+			'author'    => sanitize_text_field( $_POST['book_author'] ?? '' ),
+			'price'     => sanitize_text_field( $_POST['book_price'] ?? '' ),
+			'publisher' => sanitize_text_field( $_POST['book_publisher'] ?? '' ),
+			'year'      => sanitize_text_field( $_POST['book_year'] ?? '' ),
+			'edition'   => sanitize_text_field( $_POST['book_edition'] ?? '' ),
+			'url'       => esc_url_raw( $_POST['book_url'] ?? '' ),
+		];
 
-    $exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE book_id = %d", $post_id ) );
+		$exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE book_id = %d", $post_id ) );
 
-    if ( $exists ) {
-        $wpdb->update( $table, $data, [ 'book_id' => $post_id ] );
-    } else {
-        $data['book_id'] = $post_id;
-        $wpdb->insert( $table, $data );
-    }
-}
+		if ( $exists ) {
+			$wpdb->update( $table, $data, [ 'book_id' => $post_id ] );
+		} else {
+			$data['book_id'] = $post_id;
+			$wpdb->insert( $table, $data );
+		}
+	}
+
+	public function add_book_settings_page() 
+	{
+		add_submenu_page(
+			'edit.php?post_type=book',
+			__( 'Book Settings', 'wp-book' ),
+			__( 'Settings', 'wp-book' ),
+			'manage_options',
+			'wp-book-settings',
+			[ $this, 'render_book_settings_page' ]
+		);
+	}
+
+	public function render_book_settings_page() 
+	{
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Book Settings', 'wp-book' ); ?></h1>
+			<form method="post" action="options.php">
+				<?php
+					settings_fields( 'wp_book_settings' );
+					do_settings_sections( 'wp-book-settings' );
+					submit_button();
+				?>
+			</form>
+		</div>
+		<?php
+	}
+
+
+	public function register_book_settings() 
+	{
+		register_setting( 'wp_book_settings', 'wp_book_currency' );
+		register_setting( 'wp_book_settings', 'wp_book_per_page' );
+
+		add_settings_section(
+			'wp_book_main_section',
+			__( 'General Settings', 'wp-book' ),
+			null,
+			'wp-book-settings'
+		);
+
+		add_settings_field(
+			'wp_book_currency',
+			__( 'Currency', 'wp-book' ),
+			function () {
+				$value = get_option( 'wp_book_currency', 'USD' );
+				echo '<input type="text" name="wp_book_currency" value="' . esc_attr( $value ) . '" />';
+			},
+			'wp-book-settings',
+			'wp_book_main_section'
+		);
+
+		add_settings_field(
+			'wp_book_per_page',
+			__( 'Books Per Page', 'wp-book' ),
+			function () {
+				$value = get_option( 'wp_book_per_page', 10 );
+				echo '<input type="number" name="wp_book_per_page" value="' . esc_attr( $value ) . '" min="1" />';
+			},
+			'wp-book-settings',
+			'wp_book_main_section'
+		);
+	}
+
+	
+
 
 }
