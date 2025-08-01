@@ -79,7 +79,7 @@ class Wp_Book {
 		$this->define_admin_hooks();
 		$this->define_public_hooks();
 		add_action('init',[$this,'register_book_post_type']);
-
+		add_action('init',[$this, 'register_book_taxonomies']);
 	}
 
 	/**
@@ -228,5 +228,43 @@ class Wp_Book {
 			'supports'=>['title','editor','thumbnail'],
 			'show_in_rest'=>true,
 		]);
+	}
+
+	public function register_book_taxonomies(){
+
+		register_taxonomy('book_category','book',[
+			'labels'=>[
+				'name' => __('Book Categories','wp-book'),
+				'singular_name' => __( 'Book Category','wp-book'),
+				'search_items'=>__('Search Book Categories','wp-book'),
+				'all_items'=>__('All book categories','wp-book'),
+				'parent_item'=>__('Parent Book Category','wp-book'),
+				'edit_item'=>__('Edit Book Cateogry','wp-book'),
+				'update-item'=>__('Update Book Category','wp-book'),
+				'add_new_item'=>__('Add New Book Category','wp-book'),
+				'new_item_name'=>__('New Book Category Name','wp-book')
+			],
+			'hierarchical'=>true, 
+			'public'=>true, 
+			'show_in_rest'=>true 
+		]);
+
+		// Book Tag (Non-Hierarchical)
+		register_taxonomy('book_tag','book',[
+			'labels'=>[
+			'name'=>__('Book Tags','wp-book'),
+			'singular_name'=>__('Book Tag','wp-book'),
+			'search_items'=>__('Search Book Tags','wp-book'),
+			'all_items'=>__('All Book Tags','wp-book'),
+			'edit_item'=>__('Edit Book Tag','wp-book'), 
+			'update_item'=>__('Update Book tag','wp-book'),
+			'add_new_item'=>__('Add New Book Tag','wp-book'),
+			'new_item_name'=>__('New Book Tag Name','wp-book')
+		],
+		'hierarchical'=>false, 
+		'public'=>true,
+		'show_in_rest'=>true
+	]);
+		
 	}
 }
