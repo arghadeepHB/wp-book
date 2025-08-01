@@ -80,6 +80,8 @@ class Wp_Book {
 		$this->define_public_hooks();
 		add_action('init',[$this,'register_book_post_type']);
 		add_action('init',[$this, 'register_book_taxonomies']);
+		add_action('add_meta_boxes',[$this, 'add_book_meta_box']); 
+		add_action('save_post',[$this,'save_book_meta']);
 	}
 
 	/**
@@ -266,5 +268,81 @@ class Wp_Book {
 		'show_in_rest'=>true
 	]);
 		
+	}
+
+	public function add_book_meta_box(){
+		add_meta_box(
+			'book_meta_box',
+			__('Book Details','wp-book'),
+			[$this,'render_book_meta_box'],
+			'book',
+			'normal',
+			'default'
+		);
+	}
+	public function render_book_meta_box($post){
+		// adding the nonce
+		wp_nonce_field(basename(__FILE__),'book_meta_nonce');
+
+		$author = get_post_meta($post->ID,'_book_author',true);
+		$price = get_post_meta($post->ID,'_book_price',true); 
+		$publisher = get_post_meta($post->ID, '_book_publisher',true);
+		$year = get_post_meta($post->ID, '_book_year',true);
+		$edition = get_post_meta($post->ID,'_book_edition',true); 
+		$url = get_post_meta($post->ID, '_book_url',true); 
+		?>
+			<p>
+				<label for="">Author Name:</label>
+				<br>
+				<input type="text" name="book_author" value="<?php echo esc_attr($author);?>" class="widefat">
+			</p>
+			<p>
+				<label for="">Price:</label>
+				<br>
+				<input type="text" name="book_price" value="<?php echo esc_attr($price);?>" class="widefat">
+			</p>
+			<p>
+				<label for="">Publisher:</label>
+				<br>
+				<input type="text" name="book_publisher" value="<?php echo esc_attr($publisher);?>" class="widefat">
+			</p>
+			<p>
+				<label for="">Year:</label>
+				<br>
+				<input type="text" name="book_year" value="<?php echo esc_attr($year);?>" class="widefat">
+			</p>
+			<p>
+				<label for="">Edition:</label>
+				<br>
+				<input type="text" name="book_edition" value="<?php echo esc_attr($edition);?>" class="widefat">
+			</p>
+			<p>
+				<label for="">URL:</label>
+				<br>
+				<input type="url" name="book_url" value="<?php echo esc_attr($url);?>" class="widefat">
+			</p>
+		<?php 
+	}
+
+	public function save_book_meta($post_id){
+		if(!isset($_POST['book_meta_nonce']) || !wp_verify_nonce($_POST['book_meta_nonce'],basename(__FILE__))){
+			return $post_id; 
+		}
+		if(defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return $post_id;
+
+		if(get_post_type($post_id)!=='book' || !current_user_can('edit_post',$post_id)) return $post_id;
+
+		$fields = [
+			'_book_author' => sanitize_text_field($_POST['book_author']??''),
+			'_book_price' => sanitize_text_field($_POST['book_price']??''),
+			'_book_publisher'=>sanitize_text_field($_POST['book_publisher']??''),
+			'_book_year'=>sanitize_text_field($_POST['book_year']??''),
+			'_book_edition'=>sanitize_text_field($_POST['book_edition']??''),
+			'_book_url'=>esc_url_raw($_POST['book_url']??''),
+		];
+
+		foreach($fields as $key=>$value){
+			update_post_meta($post_id, $key, $value); 
+		}
 	}
 }
