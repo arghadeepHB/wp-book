@@ -84,6 +84,7 @@ class Wp_Book {
 		add_action('save_post',[$this,'save_book_meta']);
 		add_action( 'admin_menu', [ $this, 'add_book_settings_page' ] );
 		add_action( 'admin_init', [ $this, 'register_book_settings' ] );
+		add_shortcode( 'book', [ $this, 'render_book_shortcode' ] );
 
 	}
 
@@ -421,6 +422,78 @@ class Wp_Book {
 			'wp_book_main_section'
 		);
 	}
+
+	public function render_book_shortcode( $atts ) {
+    $atts = shortcode_atts( [
+        'id'           => '',
+        'author_name'  => '',
+        'year'         => '',
+        'category'     => '',
+        'tag'          => '',
+        'publisher'    => '',
+    ], $atts, 'book' );
+
+    global $wpdb;
+
+    $query_args = [
+        'post_type' => 'book',
+        'post_status' => 'publish',
+        'posts_per_page' => get_option( 'wp_book_per_page', 10 ),
+    ];
+
+    if ( $atts['id'] ) {
+        $query_args['p'] = intval( $atts['id'] );
+    }
+
+    if ( $atts['category'] ) {
+        $query_args['tax_query'][] = [
+            'taxonomy' => 'book_category',
+            'field'    => 'slug',
+            'terms'    => sanitize_title( $atts['category'] ),
+        ];
+    }
+
+    if ( $atts['tag'] ) {
+        $query_args['tax_query'][] = [
+            'taxonomy' => 'book_tag',
+            'field'    => 'slug',
+            'terms'    => sanitize_title( $atts['tag'] ),
+        ];
+    }
+
+    $posts = get_posts( $query_args );
+    $output = '';
+
+    foreach ( $posts as $post ) {
+        $meta = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}book_meta WHERE book_id = %d", $post->ID
+        ) );
+
+        if (
+            ($atts['author_name'] && stripos( $meta->author ?? '', $atts['author_name'] ) === false) ||
+            ($atts['year'] && $meta->year != $atts['year']) ||
+            ($atts['publisher'] && stripos( $meta->publisher ?? '', $atts['publisher'] ) === false)
+        ) {
+            continue;
+        }
+
+        $currency = esc_html( get_option( 'wp_book_currency', 'USD' ) );
+        $output .= '<div class="book">';
+        $output .= '<h3>' . esc_html( get_the_title( $post ) ) . '</h3>';
+        $output .= '<p><strong>Author:</strong> ' . esc_html( $meta->author ?? '' ) . '</p>';
+        $output .= '<p><strong>Price:</strong> ' . esc_html( $currency . ' ' . ( $meta->price ?? '' ) ) . '</p>';
+        $output .= '<p><strong>Publisher:</strong> ' . esc_html( $meta->publisher ?? '' ) . '</p>';
+        $output .= '<p><strong>Year:</strong> ' . esc_html( $meta->year ?? '' ) . '</p>';
+        $output .= '<p><strong>Edition:</strong> ' . esc_html( $meta->edition ?? '' ) . '</p>';
+        if ( $meta->url ) {
+            $output .= '<p><a href="' . esc_url( $meta->url ) . '" target="_blank">More Info</a></p>';
+        }
+        $output .= '</div><hr>';
+    }
+
+    return $output ?: '<p>No books found.</p>';
+}
+
 
 	
 
