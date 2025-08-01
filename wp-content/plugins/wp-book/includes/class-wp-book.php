@@ -324,25 +324,34 @@ class Wp_Book {
 		<?php 
 	}
 
-	public function save_book_meta($post_id){
-		if(!isset($_POST['book_meta_nonce']) || !wp_verify_nonce($_POST['book_meta_nonce'],basename(__FILE__))){
-			return $post_id; 
-		}
-		if(defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return $post_id;
+	public function save_book_meta( $post_id ) {
+    if ( ! isset( $_POST['book_meta_nonce'] ) || ! wp_verify_nonce( $_POST['book_meta_nonce'], basename( __FILE__ ) ) ) {
+        return;
+    }
 
-		if(get_post_type($post_id)!=='book' || !current_user_can('edit_post',$post_id)) return $post_id;
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
+    if ( get_post_type( $post_id ) !== 'book' || ! current_user_can( 'edit_post', $post_id ) ) return;
 
-		$fields = [
-			'_book_author' => sanitize_text_field($_POST['book_author']??''),
-			'_book_price' => sanitize_text_field($_POST['book_price']??''),
-			'_book_publisher'=>sanitize_text_field($_POST['book_publisher']??''),
-			'_book_year'=>sanitize_text_field($_POST['book_year']??''),
-			'_book_edition'=>sanitize_text_field($_POST['book_edition']??''),
-			'_book_url'=>esc_url_raw($_POST['book_url']??''),
-		];
+    global $wpdb;
+    $table = $wpdb->prefix . 'book_meta';
 
-		foreach($fields as $key=>$value){
-			update_post_meta($post_id, $key, $value); 
-		}
-	}
+    $data = [
+        'author'    => sanitize_text_field( $_POST['book_author'] ?? '' ),
+        'price'     => sanitize_text_field( $_POST['book_price'] ?? '' ),
+        'publisher' => sanitize_text_field( $_POST['book_publisher'] ?? '' ),
+        'year'      => sanitize_text_field( $_POST['book_year'] ?? '' ),
+        'edition'   => sanitize_text_field( $_POST['book_edition'] ?? '' ),
+        'url'       => esc_url_raw( $_POST['book_url'] ?? '' ),
+    ];
+
+    $exists = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $table WHERE book_id = %d", $post_id ) );
+
+    if ( $exists ) {
+        $wpdb->update( $table, $data, [ 'book_id' => $post_id ] );
+    } else {
+        $data['book_id'] = $post_id;
+        $wpdb->insert( $table, $data );
+    }
+}
+
 }
